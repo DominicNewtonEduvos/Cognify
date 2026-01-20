@@ -1,0 +1,349 @@
+package com.example.cognify;
+
+/*
+ * @Author Nicholas Leong        EDUV4551823
+ * @Author Aarya Manowah         be.2023.q4t9k6
+ * @Author Nyasha Masket        BE.2023.R3M0Y0
+ * @Author Sakhile Lesedi Mnisi  BE.2022.j9f3j4
+ * @Author Dominic Newton       EDUV4818782
+ * @Author Kimberly Sean Sibanda EDUV4818746
+ *
+ * Supervisor: Stacey Byrne      Stacey.byrne@eduvos.com
+ * */
+
+import android.content.Intent;
+import android.graphics.Color;
+import android.graphics.drawable.GradientDrawable;
+import android.os.Bundle;
+import android.view.View;
+import android.widget.ImageView;
+import android.widget.LinearLayout;
+import android.widget.TextView;
+import android.widget.Toast;
+
+import androidx.annotation.NonNull;
+import androidx.appcompat.app.AppCompatActivity;
+import androidx.constraintlayout.widget.ConstraintLayout;
+import androidx.core.view.GravityCompat;
+import androidx.drawerlayout.widget.DrawerLayout;
+
+import com.google.android.material.bottomnavigation.BottomNavigationView;
+import com.google.android.material.navigation.NavigationView;
+import com.google.firebase.auth.FirebaseAuth;
+import com.google.firebase.auth.FirebaseUser;
+import com.google.firebase.firestore.DocumentSnapshot;
+import com.google.firebase.firestore.FirebaseFirestore;
+
+import java.util.Calendar;
+
+public class HomePage extends AppCompatActivity {
+
+    private PdfLoader pdfLoader;
+    private TextView tvName;
+
+    private TextView tvStreakCountMG;
+    private TextView tvStreakCountDB;
+    private TextView tvStreakCountCR;
+    // Add more if needed, e.g., for day circles or titles
+
+    private LinearLayout llDayCircles;
+    private LinearLayout llMatchingGame;
+
+    private LinearLayout llDefinitionBuilder;
+
+    private LinearLayout llCrossword;
+
+    private FirebaseAuth mAuth;
+    private FirebaseFirestore db;
+
+    private DrawerLayout drawerLayout;
+    private ImageView ivMenu;
+    private NavigationView navigationView;
+
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        setContentView(R.layout.activity_home_page);
+        getWindow().setStatusBarColor(Color.BLACK);
+
+        pdfLoader = new PdfLoader();
+
+        // Initialize Firebase Authentication and Firestore
+        mAuth = FirebaseAuth.getInstance();
+        db = FirebaseFirestore.getInstance();
+
+        // Find views by ID
+//        ivProfilePicture = findViewById(R.id.ivProfilePicture);
+        tvName = findViewById(R.id.tvName);
+
+        drawerLayout = findViewById(R.id.drawer_layout);
+        ivMenu = findViewById(R.id.ivMenu);
+        navigationView = findViewById(R.id.nav_view);
+
+        tvStreakCountMG = findViewById(R.id.tvStreakCountMG);
+        tvStreakCountDB = findViewById(R.id.tvStreakCountDB);
+        tvStreakCountCR = findViewById(R.id.tvStreakCountCR);
+
+        // Find game cards (assuming you add IDs in XML)
+        llMatchingGame = findViewById(R.id.llMatchingGame);
+        llDefinitionBuilder = findViewById(R.id.llDefinitionBuilder);
+        llCrossword = findViewById(R.id.llCrossword);
+
+        llDayCircles = findViewById(R.id.llDayCircles);
+
+        getUserDetails();
+        setOnClickListeners();
+        highlightStreak();
+
+        // Set up Bottom Navigation View
+        BottomNavigationView bottomNavigationView = findViewById(R.id.bottomNavigation);
+        bottomNavigationView.setSelectedItemId(R.id.nav_home);
+        bottomNavigationView.setOnNavigationItemSelectedListener(new BottomNavigationView.OnNavigationItemSelectedListener() {
+            @Override
+            public boolean onNavigationItemSelected(@NonNull android.view.MenuItem item) {
+                if (item.getItemId() == R.id.nav_home) {
+                    // Already on home page, do nothing or refresh
+                    Toast.makeText(HomePage.this, "Home Page", Toast.LENGTH_SHORT).show();
+                    return true;
+                } else if (item.getItemId() == R.id.nav_books) {
+                    // Navigate to Books Activity
+                    startActivity(new Intent(HomePage.this, AddAndViewInformation.class));
+                    return true;
+                } else if (item.getItemId() == R.id.nav_profile) {
+                    // Navigate to Profile Activity
+                    startActivity(new Intent(HomePage.this, ProfileActivity.class));
+                    return true;
+                } else if (item.getItemId() == R.id.nav_games) {
+                    // Navigate to Games Activity
+                    startActivity(new Intent(HomePage.this, GamesScreen.class));
+                    return true;
+                } else if (item.getItemId() == R.id.nav_settings) {
+                    // Navigate to Settings Activity
+                    startActivity(new Intent(HomePage.this, HelpActivity.class));
+                    return true;
+                } else {
+                    return false;
+                }
+            }
+        });
+    }
+
+    private void setOnClickListeners() {
+        // Set click listeners
+
+        // Set click listeners for game cards
+        llMatchingGame.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                pdfLoader.loadLastSelectedPdf(HomePage.this, new PdfLoader.PdfLoaderListener() {
+                    @Override
+                    public void onPdfLoaded(String courseName, int termCount) {
+                        Intent intent = new Intent(HomePage.this, MatchingGame.class);
+                        startActivity(intent);
+                    }
+
+                    @Override
+                    public void onPdfLoadFailed(String errorMessage) {
+                        Toast.makeText(HomePage.this, "Error loading game. Please try from the Games Screen.", Toast.LENGTH_LONG).show();
+                    }
+                });
+            }
+        });
+
+        llDefinitionBuilder.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                pdfLoader.loadLastSelectedPdf(HomePage.this, new PdfLoader.PdfLoaderListener() {
+                    @Override
+                    public void onPdfLoaded(String courseName, int termCount) {
+                        Intent intent = new Intent(HomePage.this, DefinitionBuilder.class);
+                        startActivity(intent);
+                    }
+
+                    @Override
+                    public void onPdfLoadFailed(String errorMessage) {
+                        Toast.makeText(HomePage.this, "Error loading game. Please try from the Games Screen.", Toast.LENGTH_LONG).show();
+                    }
+                });
+            }
+        });
+
+        llCrossword.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                pdfLoader.loadLastSelectedPdf(HomePage.this, new PdfLoader.PdfLoaderListener() {
+                    @Override
+                    public void onPdfLoaded(String courseName, int termCount) {
+                        Intent intent = new Intent(HomePage.this, Crossword.class);
+                        startActivity(intent);
+                    }
+
+                    @Override
+                    public void onPdfLoadFailed(String errorMessage) {
+                        Toast.makeText(HomePage.this, "Error loading game. Please try from the Games Screen.", Toast.LENGTH_LONG).show();
+                    }
+                });
+            }
+        });
+
+        ivMenu.setOnClickListener(v ->{
+            drawerLayout.openDrawer(GravityCompat.START);
+        });
+
+        navigationView.setNavigationItemSelectedListener(item -> {
+            int itemID = item.getItemId();
+
+            if (itemID == R.id.homepage){
+                Toast.makeText(HomePage.this, "Home Page", Toast.LENGTH_SHORT).show();
+            }else if (itemID == R.id.information){
+                startActivity(new Intent(HomePage.this, AddAndViewInformation.class));
+            }else if (itemID == R.id.profile){
+                startActivity(new Intent(HomePage.this, ProfileActivity.class));
+            }else if (itemID == R.id.games){
+                startActivity(new Intent(HomePage.this, GamesScreen.class));
+            }else if (itemID == R.id.feedback){
+                startActivity(new Intent(HomePage.this, HelpActivity.class));
+            }
+
+            drawerLayout.closeDrawer(GravityCompat.START);
+            return true;
+        });
+    }
+
+    public void getUserDetails() {
+        // Check if the UserDetails singleton has been cleared (e.g., app was killed)
+        if (UserDetails.getUsername() == null) {
+            // If data is missing, re-fetch it from Firestore
+            FirebaseUser currentUser = mAuth.getCurrentUser();
+            if (currentUser != null) {
+                String userId = currentUser.getUid();
+                fetchDataFromFirestore(userId);
+            }
+        } else {
+            // If data is already present, just update the UI like before
+            updateUiWithLocalData();
+        }
+    }
+
+    // New method to keep the UI update logic separate
+    private void updateUiWithLocalData() {
+        if (UserDetails.getUsername() != null) {
+            tvName.setText(UserDetails.getUsername());
+        }
+
+        GameDetailsTracker temp = GameDetailsTracker.getGdt();
+        if (temp != null) {
+            tvStreakCountMG.setText(String.valueOf(temp.getMatchingGameStreak()));
+            tvStreakCountDB.setText(String.valueOf(temp.getDefinitionBuilderStreak()));
+            tvStreakCountCR.setText(String.valueOf(temp.getCrosswordStreak()));
+        }
+    }
+
+    //Method to fetch all required data from Firestore
+    private void fetchDataFromFirestore(String userId) {
+        // 1. Fetch User Document
+        db.collection("users").document(userId).get().addOnSuccessListener(documentSnapshot -> {
+            if (documentSnapshot.exists()) {
+                String username = documentSnapshot.getString("username");
+                String email = documentSnapshot.getString("email");
+
+                // 2. Fetch Gamification Data
+                db.collection("gamification").whereEqualTo("userId", userId).get().addOnSuccessListener(querySnapshot -> {
+                    // Use the same logic from your LoginActivity to parse game data
+                    int mgPoints = 0, mgStreak = 0;
+                    int dbPoints = 0, dbStreak = 0;
+                    int crPoints = 0, crStreak = 0;
+
+                    for (DocumentSnapshot doc : querySnapshot.getDocuments()) {
+                        String gameType = doc.getString("game_type");
+                        if (gameType == null) continue;
+
+                        int points = doc.getLong("total_points").intValue();
+                        int streak = doc.getLong("streak").intValue();
+
+                        switch (gameType) {
+                            case "Matching Game":{
+                                mgPoints = points;
+                                mgStreak = streak;
+                                break;
+                            }
+                            case "Definition Builder": {
+                                dbPoints = points;
+                                dbStreak = streak;
+                                break;
+                            }
+                            case "Crossword": {
+                                crPoints = points;
+                                crStreak = streak;
+                                break;
+                            }
+                        }
+                    }
+
+                    int totalPoints = mgPoints + dbPoints + crPoints;
+
+                    // 3. Re-populate the singletons
+                    UserDetails.setUD(new UserDetails(username, userId, email, totalPoints));
+                    GameDetailsTracker.setGdt(new GameDetailsTracker(mgStreak, dbStreak, crStreak, mgPoints, dbPoints, crPoints));
+
+                    // 4. Update the UI with the newly fetched data
+                    updateUiWithLocalData();
+
+                }).addOnFailureListener(e -> {
+                    // Handle failure to get game data
+                    Toast.makeText(this, "Failed to load game stats.", Toast.LENGTH_SHORT).show();
+                });
+            }
+        }).addOnFailureListener(e -> {
+            // Handle failure to get user data
+            Toast.makeText(this, "Failed to load user profile.", Toast.LENGTH_SHORT).show();
+        });
+    }
+
+    private void highlightStreak() {
+        if (llDayCircles == null) return;
+
+        int todayIndex = mapDayOfWeekToIndex(Calendar.getInstance().get(Calendar.DAY_OF_WEEK));
+        for (int i = 0; i < llDayCircles.getChildCount(); i++) {
+            if (llDayCircles.getChildAt(i) instanceof TextView){
+                TextView day = (TextView) llDayCircles.getChildAt(i);
+                GradientDrawable circle = new GradientDrawable();
+                circle.setShape(GradientDrawable.OVAL);
+
+                if (i < todayIndex) {
+                    circle.setColor(Color.LTGRAY);
+                    day.setTextColor(Color.BLACK);
+                } else if (i == todayIndex) {
+                    circle.setColor(Color.parseColor("#FF9800"));
+                    day.setTextColor(Color.WHITE);
+                } else {
+                    circle.setColor(Color.parseColor("#DDDDDD"));
+                    day.setTextColor(Color.BLACK);
+                }
+                circle.setStroke(3, Color.BLACK);
+                day.setBackground(circle);
+            }
+
+        }
+    }
+
+    private int mapDayOfWeekToIndex(int calendarDay) {
+        switch (calendarDay) {
+            case Calendar.MONDAY: return 0;
+            case Calendar.TUESDAY: return 1;
+            case Calendar.WEDNESDAY: return 2;
+            case Calendar.THURSDAY: return 3;
+            case Calendar.FRIDAY: return 4;
+            case Calendar.SATURDAY: return 5;
+            case Calendar.SUNDAY: return 6;
+            default: return 0;
+        }
+    }
+    @Override
+    public void onResume(){
+        super.onResume();
+        getUserDetails();
+        updateUiWithLocalData();
+        highlightStreak();
+    }
+}
